@@ -1,0 +1,2 @@
+pip install dvc
+pip freeze | Select-String -Pattern "^dvc=="2.17.0
