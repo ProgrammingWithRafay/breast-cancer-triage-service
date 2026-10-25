@@ -2,7 +2,7 @@ seed: 42
 test_size: 0.2
 cv_folds: 5
 logistic_regression:
-  max_iter: 1000
+  max_iter: 2000
   class_weight: balanced
   grid:
     C: [0.01, 0.1, 1.0, 10.0, 100.0]
