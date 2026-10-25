@@ -1,0 +1,57 @@
+{
+  "model_version": "1.0.0",
+  "model_family": "LogisticRegression",
+  "best_params": {
+    "C": 0.1
+  },
+  "feature_names": [
+    "mean_radius",
+    "mean_texture",
+    "mean_perimeter",
+    "mean_area",
+    "mean_smoothness",
+    "mean_compactness",
+    "mean_concavity",
+    "mean_concave_points",
+    "mean_symmetry",
+    "mean_fractal_dimension",
+    "radius_error",
+    "texture_error",
+    "perimeter_error",
+    "area_error",
+    "smoothness_error",
+    "compactness_error",
+    "concavity_error",
+    "concave_points_error",
+    "symmetry_error",
+    "fractal_dimension_error",
+    "worst_radius",
+    "worst_texture",
+    "worst_perimeter",
+    "worst_area",
+    "worst_smoothness",
+    "worst_compactness",
+    "worst_concavity",
+    "worst_concave_points",
+    "worst_symmetry",
+    "worst_fractal_dimension"
+  ],
+  "n_features": 30,
+  "positive_class": "malignant (target 0)",
+  "test_metrics": {
+    "recall_malignant": 0.95,
+    "precision_malignant": 0.95,
+    "accuracy": 0.9629629629629629,
+    "roc_auc": 0.9875
+  },
+  "cv_metrics": {
+    "recall_malignant_mean": 0.975189393939394,
+    "recall_malignant_std": 0.012410723428337782,
+    "accuracy_mean": 0.9837476610531943,
+    "accuracy_std": 0.0057185216535446766,
+    "roc_auc_mean": 0.9968995510662177,
+    "roc_auc_std": 0.0018762357404784277
+  },
+  "seed": 42,
+  "sklearn_version": "1.6.1"
+}
