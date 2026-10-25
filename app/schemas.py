@@ -27,8 +27,6 @@ _EXAMPLE = {
 class PredictRequest(BaseModel):
     """The 30 tumour features, all required, in training column order."""
 
-    model_config = ConfigDict(extra="forbid", json_schema_extra={"examples": [_EXAMPLE]})
-
     mean_radius: Feature
     mean_texture: Feature
     mean_perimeter: Feature
