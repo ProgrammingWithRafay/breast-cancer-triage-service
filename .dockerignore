@@ -1,0 +1,9 @@
+*
+!app/
+!training/
+!params.yaml
+!requirements-train.txt
+!requirements-serve.txt
+!data/raw/breast_cancer.csv
+**/__pycache__
+**/*.pyc
