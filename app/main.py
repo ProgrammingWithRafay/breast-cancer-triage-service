@@ -15,6 +15,7 @@ from typing import Any, NoReturn
 import joblib
 import numpy as np
 import pandas as pd
+import redis
 import sklearn
 from fastapi import FastAPI, Request
 from fastapi.encoders import jsonable_encoder
@@ -33,6 +34,7 @@ from app.schemas import (
 MALIGNANT_CLASS = 0
 MODEL_CARD_NAME = "model_card.json"
 REQUIRED_CARD_KEYS = ("model_family", "feature_names", "test_metrics", "sklearn_version")
+PREDICTIONS_KEY = "predictions_served"
 
 
 def configure_logging(level: str) -> logging.Logger:
@@ -127,14 +129,17 @@ def resolve_model_version(card: dict[str, Any]) -> str:
 # ---------------------------------------------------------------------------
 @asynccontextmanager
 async def lifespan(app: FastAPI) -> AsyncIterator[None]:
-    """Load the model and model card once at startup."""
+    """Load the model and model card once at startup, and manage the optional Redis client."""
     logger.info(
-        "Config: MODEL_PATH=%s DECISION_THRESHOLD=%s LOG_LEVEL=%s MODEL_VERSION=%s GIT_SHA=%s",
+        "Config: MODEL_PATH=%s DECISION_THRESHOLD=%s LOG_LEVEL=%s MODEL_VERSION=%s "
+        "GIT_SHA=%s REDIS_HOST=%s REDIS_PORT=%s",
         settings.model_path,
         settings.decision_threshold,
         settings.log_level,
         settings.model_version or "(from model card)",
         settings.git_sha,
+        settings.redis_host or "(disabled)",
+        settings.redis_port,
     )
 
     model = load_model(settings.model_path)
@@ -148,13 +153,29 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
     app.state.malignant_index = malignant_column(model)
     app.state.model_version = resolve_model_version(card)
 
+    # Lazy client creation: does not open a socket or fail startup if Redis is down
+    redis_client: redis.Redis | None = None
+    if settings.redis_host:
+        redis_client = redis.Redis(
+            host=settings.redis_host,
+            port=settings.redis_port,
+            decode_responses=True,
+            socket_connect_timeout=1,
+            socket_timeout=1,
+        )
+    app.state.redis = redis_client
+
     logger.info(
         "Loaded %s model version %s from %s",
         card["model_family"],
         app.state.model_version,
         settings.model_path,
     )
-    yield
+    try:
+        yield
+    finally:
+        if redis_client is not None:
+            redis_client.close()
 
 
 app = FastAPI(title="Breast Cancer Triage Service", lifespan=lifespan)
@@ -197,12 +218,20 @@ def predict(features: PredictRequest, request: Request) -> PredictResponse:
     label = "malignant" if probability >= settings.decision_threshold else "benign"
     logger.debug("Prediction: malignant_probability=%.6f label=%s", probability, label)
 
-    return PredictResponse(
+    response = PredictResponse(
         label=label,
         malignant_probability=round(probability, 4),
         threshold=settings.decision_threshold,
         model_version=state.model_version,
     )
+
+    if state.redis is not None:
+        try:
+            state.redis.incr(PREDICTIONS_KEY)
+        except (redis.RedisError, OSError) as exc:
+            logger.warning("Redis counter increment failed: %s", exc)
+
+    return response
 
 
 @app.get("/model/info", response_model=ModelInfoResponse)
@@ -222,6 +251,15 @@ def model_info(request: Request) -> ModelInfoResponse:
 
 
 @app.get("/stats", response_model=StatsResponse)
-def stats() -> StatsResponse:
-    """Placeholder until Redis-backed counters are added."""
-    return StatsResponse(predictions_served=None, redis="not configured")
+def stats(request: Request) -> StatsResponse:
+    """Return the Redis-backed prediction counter and connection status."""
+    redis_client: redis.Redis | None = request.app.state.redis
+    if redis_client is None:
+        return StatsResponse(predictions_served=None, redis="not configured")
+    try:
+        raw = redis_client.get(PREDICTIONS_KEY)
+        count = int(raw) if raw is not None else 0
+    except (redis.RedisError, OSError, ValueError) as exc:
+        logger.warning("Redis stats lookup failed: %s", exc)
+        return StatsResponse(predictions_served=None, redis="unavailable")
+    return StatsResponse(predictions_served=count, redis="connected")

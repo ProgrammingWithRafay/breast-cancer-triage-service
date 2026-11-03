@@ -18,6 +18,8 @@ class Settings:
     log_level: str
     model_version: str | None  # None -> use model_version from the model card
     git_sha: str
+    redis_host: str | None  # None -> Redis request counting is disabled
+    redis_port: int
 
 
 def _parse_threshold(raw: str) -> float:
@@ -43,6 +45,19 @@ def _parse_log_level(raw: str) -> str:
     return level
 
 
+def _parse_redis_port(raw: str) -> int:
+    """Parse REDIS_PORT and require an integer port in [1, 65535]."""
+    try:
+        port = int(raw)
+    except ValueError:
+        raise ConfigError(
+            f"REDIS_PORT must be an integer between 1 and 65535, got {raw!r}"
+        ) from None
+    if not 1 <= port <= 65535:
+        raise ConfigError(f"REDIS_PORT must be between 1 and 65535, got {raw!r}")
+    return port
+
+
 def load_settings() -> Settings:
     """Build Settings from the environment; raises ConfigError on bad values."""
     return Settings(
@@ -51,4 +66,6 @@ def load_settings() -> Settings:
         log_level=_parse_log_level(os.getenv("LOG_LEVEL", "INFO")),
         model_version=os.getenv("MODEL_VERSION") or None,
         git_sha=os.getenv("GIT_SHA", "unknown"),
+        redis_host=(os.getenv("REDIS_HOST") or "").strip() or None,
+        redis_port=_parse_redis_port(os.getenv("REDIS_PORT", "6379")),
     )
