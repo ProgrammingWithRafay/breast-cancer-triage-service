@@ -12,19 +12,27 @@ All data preparation, train/test splitting, and model training steps use a fixed
 
 ```text
 breast-cancer-triage-service/
-├── app/                      # FastAPI service (config.py, schemas.py, main.py, uvicorn_log_config.json)
-├── training/                 # Data preparation, v2 dataset script, and model training
-├── data/raw/                 # Raw dataset directory (breast_cancer.csv tracked by DVC)
-├── dvc-remote/               # Committed local DVC remote storage
-├── docs/                     # Documentation (including Docker Hub repository overview)
-├── dvc.yaml                  # DVC pipeline stages (train) and tracked outputs/metrics
-├── params.yaml               # Training and split hyperparameters (seed 42)
-├── Dockerfile                # Multi-stage production Dockerfile
-├── Dockerfile.naive          # Single-stage baseline Dockerfile for size/security comparison
-├── docker-compose.yml        # Multi-container Compose stack (api + redis with build)
-├── docker-compose.hub.yml    # Clean-room Compose file using the published Docker Hub image
-├── .env.example              # Template for local Compose environment variables
-└── requirements-*.txt        # Pinned dependencies (-dev.txt, -train.txt, -serve.txt)
+├── .dvc/                         # DVC configuration (local remote pointing to dvc-remote/)
+├── app/                          # FastAPI service (config.py, schemas.py, main.py, uvicorn_log_config.json)
+├── training/                     # Data preparation, v2 dataset script, and model training
+├── data/raw/                     # Raw dataset directory (breast_cancer.csv tracked by DVC)
+├── dvc-remote/                   # Committed local DVC remote storage
+├── docs/                         # Documentation (including Docker Hub repository overview)
+├── dvc.yaml                      # DVC pipeline stages (train) and tracked outputs/metrics
+├── dvc.lock                      # Locked hashes of pipeline inputs, commands, and outputs
+├── params.yaml                   # Training and split hyperparameters (seed 42)
+├── sample_payload.json           # Example 30-feature request payload for /predict
+├── Dockerfile                    # Multi-stage production Dockerfile
+├── .dockerignore                 # Build-context exclusions for Dockerfile
+├── Dockerfile.naive              # Single-stage baseline Dockerfile for size/security comparison
+├── Dockerfile.naive.dockerignore # Build-context exclusions for Dockerfile.naive
+├── docker-compose.yml            # Multi-container Compose stack (api + redis with build)
+├── docker-compose.hub.yml        # Clean-room Compose file using the published Docker Hub image
+├── .env.example                  # Template for local Compose environment variables
+├── .dvcignore                    # Patterns ignored by DVC
+├── .gitignore                    # Git-ignored files (.venv, .env, DVC-tracked data/artifacts)
+├── .gitattributes                # Enforces LF line endings and disables conversion in dvc-remote/
+└── requirements-*.txt            # Pinned dependencies (-dev.txt, -train.txt, -serve.txt)
 ```
 
 ## 3. Setup
@@ -166,7 +174,7 @@ IMAGE_TAG=1.0.0
 HOST_PORT=8080
 ```
 
-Start the stack from the published image, verify `/predict` using `sample_payload.json` from the repository, and tear it down:
+Start the stack from the published image, verify `/predict` (replace `path\to\sample_payload.json` with the path to `sample_payload.json` in your clone of the repository), and tear it down:
 
 ```powershell
 docker compose -f docker-compose.hub.yml up -d
