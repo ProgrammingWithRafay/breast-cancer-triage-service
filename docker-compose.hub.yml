@@ -1,0 +1,31 @@
+# Clean-room stack: runs only the published Docker Hub image (no build section)
+services:
+  redis:
+    image: redis:7.4.2-alpine
+    command: [ "redis-server", "--appendonly", "yes" ]
+    volumes:
+      - redis-data:/data
+    healthcheck:
+      test: [ "CMD", "redis-cli", "ping" ]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+      start_period: 5s
+    restart: unless-stopped
+
+  api:
+    image: ${DOCKERHUB_USERNAME:?set DOCKERHUB_USERNAME in .env}/breast-cancer-triage-api:${IMAGE_TAG:-1.0.0}
+    ports:
+      - "${HOST_PORT:-8080}:8000"
+    environment:
+      REDIS_HOST: redis
+      REDIS_PORT: 6379
+      DECISION_THRESHOLD: ${DECISION_THRESHOLD:-0.5}
+      LOG_LEVEL: ${LOG_LEVEL:-INFO}
+    depends_on:
+      redis:
+        condition: service_healthy
+    restart: unless-stopped
+
+volumes:
+  redis-data:
